@@ -3,13 +3,93 @@
 
 using namespace moduleX;
 
+moduleX::LoggerX::LoggerX()
+{
+	_config.readConfig();
+	init();
+}
+
+moduleX::LoggerX::~LoggerX()
+{
+	_bStart = false;
+	_file.close();
+}
+
 //init static var
 //TODO
 LoggerX* moduleX::LoggerX::instance()
 {
 	static LoggerX instance;
-	instance._config.readConfig();
 	return &instance;
+}
+
+void moduleX::LoggerX::asyncLog(LoggerX* logger)
+{
+	string single_log;
+	//从阻塞队列中取出一个日志string，写入文件
+	if (logger == nullptr)
+	{
+		cout << "日志系统未开辟空间\n";
+		return;
+	}
+
+	while (logger->_bStart)
+	{	
+		std::unique_lock <std::mutex> lck(logger->_lock_queue);
+		while (logger->_logQueue.size() <= 0)
+		{			
+			logger->_cond.wait(lck);
+		}
+		single_log = logger->_logQueue.front();
+		logger->_logQueue.pop();
+		logger->_lock_file.lock();
+		logger->_file << single_log;
+		logger->_lock_file.unlock();
+	}
+	
+}
+
+bool moduleX::LoggerX::init()
+{
+	string filename = getFilefullname();
+
+
+	string filefullname = getFilefullname();
+	string filePath = getFilePath();
+	cout << filefullname << " : " << filePath << endl;
+	if (_config["logFileSwitch"] == "on") {
+		//检查路径
+		_filemgr.createFilePath(filePath);
+		//检测文件有效性
+		if (!_filemgr.isFileExist(filefullname)) {
+			_filemgr.createFile(filefullname);
+		}
+		else {
+			long fileSize = _filemgr.getFileSize(filefullname);
+			if (fileSize > (long)atoi(_config["logMixSize"].data()) * MEGABYTES && _config["logBehavior"] == "1") {
+				string newFileName = getFilefullnameWithTime();
+				_filemgr.fileRename(filefullname, newFileName);
+				_filemgr.createFile(filefullname);
+			}
+		}
+
+		_file.open(filename, ::ios::app | ios::out);
+		if (!_file.is_open())
+		{
+			cout << "log file open error\n";
+			return false;
+		}
+	}
+
+	//开启日志队列
+	if (_config["logFileQueueSwitch"] == "on")
+	{
+		std::thread t(asyncLog, this);
+		_threadId = t.get_id();
+		t.detach();
+	}
+	
+	return true;
 }
 
 void moduleX::LoggerX::writeToTerminal(LogLevel level, const char *format, va_list args)
@@ -19,7 +99,7 @@ void moduleX::LoggerX::writeToTerminal(LogLevel level, const char *format, va_li
 
 	char szBuff[MAX_BUFF_SIZE];
 	memset(szBuff, 0, sizeof(szBuff));
-	vsprintf(szBuff, format, args);
+	vsprintf_s(szBuff, format, args);
 
 	std::cout << line << szBuff << "\n";
 	fflush(stdout); 
@@ -32,7 +112,7 @@ void moduleX::LoggerX::writeToFile(LogLevel level, const char *format, va_list a
 
 	char szBuff[MAX_BUFF_SIZE];
 	memset(szBuff, 0, sizeof(szBuff));
-	vsprintf(szBuff, format, args);
+	vsprintf_s(szBuff, format, args);
 
 	std::cout << szBuff;
 	std::string ret = oss.str();
@@ -45,23 +125,26 @@ void moduleX::LoggerX::writeToFile(LogLevel level, const char *format, va_list a
 
 	long fileSize = _filemgr.getFileSize(fullname);
 	if (fileSize > (long)atoi(_config["logMixSize"].data()) * MEGABYTES && _config["logBehavior "] == "1") {
+		_file.close();
 		string newFileName = getFilefullnameWithTime();
 		_filemgr.fileRename(fullname, newFileName);
 		_filemgr.createFile(fullname);
+
+		_file.open(fullname, ::ios::app | ios::out);
+		if (!_file.is_open())
+		{
+			cout << "log file open error\n";
+			return ;
+		}
 	}
 	if (_config["logFileQueueSwitch"] == "off") {
-		mutex_file->lock();
-		ofstream file;
-		file.open(filePashAndName, ::ios::app | ios::out);
-		file << messages << message << line_effd;
-		file.close();
-		mutex_file->unlock();
+		_lock_file.lock();			
+		_file << line << ret << "\n";
+		_lock_file.unlock();
 	}
 	else {
-		insertQueue(messages + message + line_effd, filePashAndName);
+		addLog(line + ret + "\n");
 	}
-	return 1;
-
 }
 
 std::string moduleX::LoggerX::getLogCoutTime(bool bBracket)
@@ -69,7 +152,10 @@ std::string moduleX::LoggerX::getLogCoutTime(bool bBracket)
 	time_t timep;
 	time(&timep);
 	char tmp[SIZE_64];
-	strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", localtime(&timep));
+
+	struct tm curtime ;
+	localtime_s(&curtime, &timep);
+	strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", &curtime);
 	if (!bBracket)
 	{
 		return tmp;
@@ -77,9 +163,6 @@ std::string moduleX::LoggerX::getLogCoutTime(bool bBracket)
 	string tmp_str = tmp;
 	return BRACKETS_LEFT + tmp_str + BRACKETS_RIGHT;
 }
-
-
-
 
 std::string moduleX::LoggerX::getUserName()
 {
@@ -115,9 +198,27 @@ std::string moduleX::LoggerX::getFilefullname()
 	return _config["logFilePath"]  + _config["logName"] + ".log";
 }
 
+std::string moduleX::LoggerX::getFilePath()
+{
+	return _config["logFilePath"];
+}
+
 std::string moduleX::LoggerX::getFilefullnameWithTime()
 {
 	return _config["logFilePath"] + _config["logName"] + getLogCoutTime(false) + ".log";
+}
+
+bool moduleX::LoggerX::addLog(string messages)
+{
+	_lock_queue.lock();
+	_logQueue.push(messages);
+
+	if (_logQueue.size() > 0)
+	{
+		_cond.notify_all();
+	}
+	_lock_queue.unlock();
+	return true;
 }
 
 void LoggerX::writeLog(LogLevel level, const char *format, ...)
@@ -130,12 +231,13 @@ void LoggerX::writeLog(LogLevel level, const char *format, ...)
 	va_start(args, format);
 	if (_config["logFileSwitch"] == "on")
 	{
-		writeToTerminal(level, format, args);
+		writeToFile(level, format, args);
+		
 	}
 
 	if (_config["logTerminalSwitch"] == "on")
 	{
-		writeToFile(level, format, args);
+		writeToTerminal(level, format, args);
 	}
 
 	va_end(args);
@@ -174,11 +276,12 @@ bool LoggerConfig::readConfig()
 		str_copy.erase(j);
 		if (str_copy[0] == '#')  continue;
 
+		memset(str_c, 0, sizeof(str_c));
 		sscanf_s(str_copy.data(), "%[^=]", str_c);
 		auto iter = _configMap.find(str_c);
 		if (iter != _configMap.end()) {
 			sscanf_s(str_copy.data(), "%*[^=]=%s", str_c);
-			iter->second = str_c;
+			iter->second = string(str_c);
 		}
 		else {
 		}
@@ -191,9 +294,9 @@ void LoggerConfig::initConfig()
 {
 	_configMap.clear();
 
-	_configMap["logSwitch"] = "off";
+	_configMap["logSwitch"] = "on";
 	_configMap["logFileSwitch"] = "off";
-	_configMap["logTerminalSwitch"] = "off";
+	_configMap["logTerminalSwitch"] = "on";
 	_configMap["logFileQueueSwitch"] = "off";
 	_configMap["logName"] = "";
 	_configMap["logFilePath"] = "";
@@ -218,10 +321,10 @@ long FileManage::getCurrentTime()
 	time_t t;
 	time(&t);
 
-	struct tm *p;
-	localtime_s(p, &t);
+	struct tm p;
+	localtime_s(&p, &t);
 
-	return mktime(p);
+	return mktime(&p);
 }
 
 bool moduleX::FileManage::createFilePath(string path)
@@ -236,8 +339,8 @@ bool moduleX::FileManage::createFilePath(string path)
 			}
 		}
 #elif _WIN32
-		if (0 != access(path.c_str(), 0)) {
-			if (-1 == mkdir(path.c_str())) {
+		if (0 != _access(path.c_str(), 0)) {
+			if (-1 == _mkdir(path.c_str())) {
 				return false;
 			}
 		}
@@ -254,14 +357,26 @@ bool moduleX::FileManage::createFilePath(string path)
 				}
 			}
 #elif _WIN32
-			if (-1 == access(fileName_cy.c_str(), 0)) {
-				if (0 != mkdir(fileName_cy.c_str())) {
+			if (-1 == _access(fileName_cy.c_str(), 0)) {
+				if (0 != _mkdir(fileName_cy.c_str())) {
 					return false;
 				}
 			}
 #endif
 		}
 	}
+	return true;
+}
+
+bool moduleX::FileManage::createFile(string filename)
+{
+	ofstream file;
+	file.open(filename, ::ios::app | ios::out);
+	if (!file) {
+		cout << "Failed to create file" << endl;
+		return false;
+	}
+	file.close();
 	return true;
 }
 
@@ -279,7 +394,7 @@ bool moduleX::FileManage::isFileExist(string fileName)
 #ifdef __linux__
 	return (access(fileName.data(), F_OK) != -1);
 #elif _WIN32
-	return (access(fileName.data(), 0) != -1);
+	return (_access(fileName.data(), 0) != -1);
 #endif
 }
 

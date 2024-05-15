@@ -122,12 +122,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LoggerX.cpp" />
-    <ClCompile Include="log\fdoglogger.cpp" />
     <ClCompile Include="log\test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoggerX.h" />
-    <ClInclude Include="log\fdoglogger.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

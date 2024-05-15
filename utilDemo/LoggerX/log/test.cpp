@@ -1,24 +1,50 @@
 #include<iostream>
-#include"fdoglogger.h"  //添加日志库头文件
+#include "../LoggerX.h"
+#include <stdarg.h>
 
-using namespace fdog;   //日志库的命名空间
+using namespace std;
+#define ARGDEFINE(format, ...)  testArg(format, ##__VA_ARGS__)
 
-void main1(){
+void testArg(const char *format, ...)
+{
+	
+	va_list valst;
+	va_start(valst, format);
 
-    time_t begin,end;
-    double ret;
-    begin=clock();
-    string name = "花狗";
-    for(int i = 0; i< 10000; i++){
-        FdogError("我是" << name << i);
-        FdogWarn("我是" << name);
-        FdogInfo("我是" << name);
-        FdogDebug("我是" << name);
-        FdogTrace("我是" << name);
-    }
-    end=clock();
-    ret=double(end-begin)/CLOCKS_PER_SEC;
-    cout<<"runtime:   "<<ret<<endl;
-    
-    return ;
+	char szBuff[MAX_BUFF_SIZE];
+	memset(szBuff, 0, sizeof(szBuff));
+	vsprintf_s(szBuff, format, valst);
+
+	cout << "ret : " << szBuff << endl;
+	va_end(valst);
 }
+
+int main(int argc, char *argv[])
+{
+	using namespace moduleX;
+
+	string name1 = "你好xp";
+	ARGDEFINE("hello: %s, age: %d", name1.data(), 12);
+	
+//	getchar();
+//	return 0;
+
+	time_t begin, end;
+	double ret;
+	begin = clock();
+	string name = "你好xp";
+	for (int i = 0; i < 10000; i++) {
+		LOG_DEBUG("test %s %d", name.data(), i);
+		LOG_DEBUG("test %s %d", name.data(), i);
+		LOG_DEBUG("test %s %d", name.data(), i);
+		LOG_DEBUG("test %s %d", name.data(), i);
+		LOG_DEBUG("test %s %d", name.data(), i);
+	}
+	end = clock();
+	ret = double(end - begin) / CLOCKS_PER_SEC;
+	cout << "runtime:   " << ret << endl;
+
+
+	return 0;
+}
+

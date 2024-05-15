@@ -25,14 +25,17 @@
 #include<direct.h>
 #endif
 
-
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
 
 #define __NAME__(name) #name
 #define MAX_BUFF_SIZE 512
 #define SIZE_64 64
 #define SIZE_128 128
 
-namespace moduleX {
+namespace moduleX{
 
 	using namespace std;
 	
@@ -84,13 +87,16 @@ public:
 class LoggerX
 {
 public:
-	LoggerX()=default;
+	LoggerX();
 
-	~LoggerX()=default;
+	~LoggerX();
 
 	static LoggerX* instance();
 	
+	static void asyncLog(LoggerX* logger);
 public:
+	bool init();
+
 	void writeLog(LogLevel level, const char *format, ...);
 
 	void writeToTerminal(LogLevel level, const char *format, va_list args);
@@ -105,11 +111,28 @@ public:
 
 	string getFilefullname();
 
+	string getFilePath();
+
 	string getFilefullnameWithTime();
+
+	bool addLog(string messages);
 
 	LoggerConfig _config;
 
 	FileManage _filemgr;
+
+	mutex _lock_file;
+	mutex _lock_queue;
+
+	condition_variable _cond;
+
+	ofstream _file;
+
+	queue<string> _logQueue;
+
+	thread::id	_threadId;
+
+	bool	_bStart = false;
 };
 
 
@@ -117,10 +140,10 @@ public:
 }
 
 
-#define LOG_DEBUG(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Debug, format, ##__VA_ARGS__); moduleX::Log::instance()->flush();}while(0)
-#define LOG_INFO(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Info, format, ##__VA_ARGS__); moduleX::Log::instance()->flush();}while(0)
-#define LOG_WARN(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Warn, format, ##__VA_ARGS__); moduleX::Log::instance()->flush();}while(0)
-#define LOG_ERROR(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Error, format, ##__VA_ARGS__); moduleX::Log::instance()->flush();}while(0)
-#define LOG_TRACE(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Trace, format, ##__VA_ARGS__); moduleX::Log::instance()->flush();}while(0)
+#define LOG_DEBUG(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Debug, format, ##__VA_ARGS__);}while(0)
+#define LOG_INFO(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Info, format, ##__VA_ARGS__);}while(0)
+#define LOG_WARN(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Warn, format, ##__VA_ARGS__);}while(0)
+#define LOG_ERROR(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Error, format, ##__VA_ARGS__);}while(0)
+#define LOG_TRACE(format, ...) do{moduleX::LoggerX::instance()->writeLog(LogLevel::Trace, format, ##__VA_ARGS__);}while(0)
 
 #endif // LOGGERX_H_
