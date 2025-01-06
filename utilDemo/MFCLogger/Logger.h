@@ -9,6 +9,7 @@
 
 #define MAX_BUFF_SIZE 512
 #define __NAME__(name) #name
+#define SPACE " "
 using namespace std;
 
 class Logger final
@@ -30,7 +31,7 @@ public:
 		all
 	};
 
-	bool log(Level level, Target target, const char *format, ...);
+	bool log(Level level, Target target, std::string filename, std::string function, unsigned int linenumber,  const char *format, ...);
 
 	static Logger* instance();
 
@@ -41,14 +42,16 @@ private:
 
 	std::string getLogCoutTime();
 
+	std::string levelstring(Level level);
+
 	ofstream file_;
 
 	std::string filename_;
 };
 
-#define LOG_DEBUG(format, ...) do{Logger::instance()->log(Logger::Level::debug,   Logger::Target::all,format, ##__VA_ARGS__);}while(0)
-#define LOG_INFO(format, ...)  do{Logger::instance()->log(Logger::Level::info,    Logger::Target::all,format, ##__VA_ARGS__);}while(0)
-#define LOG_WARN(format, ...)  do{Logger::instance()->log(Logger::Level::warning, Logger::Target::all,format, ##__VA_ARGS__);}while(0)
-#define LOG_ERROR(format, ...) do{Logger::instance()->log(Logger::Level::error,   Logger::Target::all,format, ##__VA_ARGS__);}while(0)
+#define LOG_DEBUG(format, ...) do{Logger::instance()->log(Logger::Level::debug,   Logger::Target::all,__FILE__ ,__FUNCTION__ ,__LINE__,format, ##__VA_ARGS__);}while(0)
+#define LOG_INFO(format, ...)  do{Logger::instance()->log(Logger::Level::info,    Logger::Target::all,__FILE__ ,__FUNCTION__ ,__LINE__,format, ##__VA_ARGS__);}while(0)
+#define LOG_WARN(format, ...)  do{Logger::instance()->log(Logger::Level::warning, Logger::Target::all,__FILE__ ,__FUNCTION__ ,__LINE__,format, ##__VA_ARGS__);}while(0)
+#define LOG_ERROR(format, ...) do{Logger::instance()->log(Logger::Level::error,   Logger::Target::all,__FILE__ ,__FUNCTION__ ,__LINE__,format, ##__VA_ARGS__);}while(0)
 
 

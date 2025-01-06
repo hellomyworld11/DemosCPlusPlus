@@ -1,9 +1,11 @@
 #include "Logger.h"
 
 #include <assert.h>
-
+#include <sys/stat.h>
 #include "function.h"
 #include "MFCLoggerDlg.h"
+const int MEGABYTES = 1048576;
+const int MaxFileSize = 6 * MEGABYTES;
 
 Logger::Logger(void):filename_("./log_minotor.txt")
 {
@@ -37,13 +39,22 @@ Logger* Logger::instance()
 	return &instance;
 }
 
-bool Logger::log(Level level, Target target, const char *format, ...)
+bool Logger::log(Level level, Target target, std::string filename, std::string function, unsigned int linenumber, const char *format, ...)
 {
+	struct stat statbuf;
+	if (stat(filename_.data(), &statbuf) == 0) {
+		long fileSize = statbuf.st_size;
+		if (fileSize > MaxFileSize)
+		{	//Çå¿ÕÎÄ¼þ
+			ofstream file_writer(filename_, ios_base::out);
+		}
+	}
+	
 	va_list args;
 	va_start(args, format);
 
-	std::string line = getLogCoutTime() + " " + __NAME__(level)  + "["
-		__FILE__ + " " + __FUNCTION__ + ":" + std::to_string(__LINE__) + "] >  ";
+	std::string line = getLogCoutTime() + " " + levelstring(level)  + SPACE +"[" +
+		filename + SPACE + function + SPACE + std::to_string(linenumber) + "]" + ">  ";
 
 	char szBuff[MAX_BUFF_SIZE];
 	memset(szBuff, 0, sizeof(szBuff));
@@ -54,6 +65,7 @@ bool Logger::log(Level level, Target target, const char *format, ...)
 	if (target == Target::file || target == Target::all)
 	{
 		file_ << output /*<< "\n"*/;
+		file_.flush();
 	}
 	if(target == Target::terminal || target == Target::all)
 	{	
@@ -78,4 +90,22 @@ std::string Logger::getLogCoutTime()
 	localtime_s(&curtime, &timep);
 	strftime(tmp, sizeof(tmp), "%Y-%m-%d %H:%M:%S", &curtime);
 	return tmp;
+}
+
+std::string Logger::levelstring(Level level)
+{
+	switch (level)
+	{
+	case Logger::Level::debug:
+		return "debug";
+	case Logger::Level::info:
+		return "info";
+	case Logger::Level::warning:
+		return "warn";
+	case Logger::Level::error:
+		return "error";
+	default:
+		return "";
+	}
+	return "";
 }
