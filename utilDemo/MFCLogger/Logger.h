@@ -12,6 +12,9 @@
 #define SPACE " "
 using namespace std;
 
+// @brief: 日志类 实现日志按等级输出 包含详细信息 更方便定位
+// @birth: hellomyworld11
+// @version: V1.1.1
 class Logger final
 {
 public:
