@@ -1,4 +1,8 @@
-#pragma once
+#ifndef MEMORY_POOL_H
+#define MEMORY_POOL_H
+
+#include <limits.h>
+#include <stddef.h>
 
 template<typename T, size_t B = 4096>
 class MemoryPool {
@@ -29,7 +33,21 @@ public:
 	//释放内存
 	void deallocate(pointer p, size_type n = 1);
 
+	//构造
+	void construct(pointer p, const_reference val);
+	void destroy(pointer p);
+
+	//类似于 new操作符
+	pointer newElement(const_reference val);
+	void deleteElement(pointer p);
+
 	//取址
+	/* 元素取址 */
+	pointer address(reference x) const throw();
+	const_pointer address(const_reference x) const throw();
+
+	// 最大大小
+	size_type max_size() const throw();
 private:
 	union Slot_
 	{
@@ -53,3 +71,8 @@ private:
 
 };
 
+
+#include "MemoryPool.tcc"
+
+
+#endif

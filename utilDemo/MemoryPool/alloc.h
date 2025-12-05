@@ -2,15 +2,15 @@
 #include <memory>
 
 template <typename T>
-struct Node {
+struct LinkNode {
 	T data;
-	Node *next = nullptr;
+	LinkNode *next = nullptr;
 };
 
 template <typename T, class Alloc = std::allocator<T>>
 class SimpleAlloc {
 public:
-	typedef Node<T> LinkNode;
+	typedef LinkNode<T> Node;
 	//将分配器的模板类型从T改成 Node<T>
 	//struct rebind  属于std::allocator类，用来重新绑定为新类型
 	//{
@@ -50,7 +50,7 @@ public:
 	T pop()
 	{
 		T ret = head_->data;
-		Node *newhead = head->next;
+		Node *newhead = head_->next;
 		alloc_.destroy(head_);
 		alloc_.deallocate(head_, 1);
 		head_ = newhead;
@@ -63,7 +63,7 @@ public:
 	}
 private:
 	
-	LinkNode *head_;
+	Node *head_;
 
 	NodeAlloctor alloc_;
 };
