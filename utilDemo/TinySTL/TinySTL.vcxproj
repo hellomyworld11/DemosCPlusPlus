@@ -118,12 +118,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="allocator.cpp" />
     <ClCompile Include="testSTL.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="algobase.h" />
     <ClInclude Include="allocator.h" />
+    <ClInclude Include="construct.h" />
+    <ClInclude Include="iterator.h" />
     <ClInclude Include="testSTL.h" />
+    <ClInclude Include="type_traits.h" />
+    <ClInclude Include="uninitialized.h" />
+    <ClInclude Include="util.h" />
+    <ClInclude Include="vector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
